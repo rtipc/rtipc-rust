@@ -299,12 +299,11 @@ impl ChannelVector {
 
     fn collect_eventfds(&self) -> Vec<BorrowedFd<'_>> {
         let producer_eventfds: Vec<BorrowedFd<'_>> = self
-            .consumers
+            .producers
             .iter()
             .flatten()
             .filter_map(|c| c.eventfd.as_ref().map(|fd| fd.as_fd()))
             .collect();
-
         let consumer_eventfds: Vec<BorrowedFd<'_>> = self
             .consumers
             .iter()

@@ -162,7 +162,6 @@ fn main() {
             queue: QueueConfig {
                 additional_messages: 10,
                 message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
-
             },
             eventfd: true,
             info: b"rpc event".to_vec(),
