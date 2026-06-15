@@ -7,7 +7,6 @@ pub mod error;
 mod header;
 mod protocol;
 mod queue;
-mod resource;
 mod shm;
 mod socket;
 mod unix;
@@ -26,7 +25,6 @@ pub use crate::cache_linux::max_cacheline_size;
 pub use channel::{ChannelVector, Consumer, Producer};
 pub use error::*;
 pub use queue::{ForcePushResult, PopResult, TryPushResult};
-pub use resource::VectorResource;
 pub use socket::{Server, client_connect, client_connect_fd};
 
 pub use nix::errno::Errno;
@@ -54,13 +52,13 @@ pub(crate) fn cacheline_aligned(size: usize) -> usize {
 pub struct QueueConfig {
     pub additional_messages: usize,
     pub message_size: NonZeroUsize,
-    pub info: Vec<u8>,
 }
 
 #[derive(Clone)]
 pub struct ChannelConfig {
     pub queue: QueueConfig,
     pub eventfd: bool,
+    pub info: Vec<u8>,
 }
 
 impl QueueConfig {

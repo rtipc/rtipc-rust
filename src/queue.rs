@@ -76,7 +76,8 @@ impl Queue {
         let queue_len = config.additional_messages + MIN_MSGS;
         let index_size = size_of::<Index>();
         let queue_size = (2 + queue_len) * index_size;
-        let message_size = NonZeroUsize::new(cacheline_aligned(config.message_size.get())).unwrap();
+        let message_size_aligned =
+            NonZeroUsize::new(cacheline_aligned(config.message_size.get())).unwrap();
 
         let mut offset_index = 0;
         let mut offset = cacheline_aligned(queue_size);
@@ -94,24 +95,31 @@ impl Queue {
             let index: *mut Index = chunk.get_ptr(offset_index)?;
             let message: *mut () = chunk.get_span_ptr(&Span {
                 offset,
-                size: message_size,
+                size: message_size_aligned,
             })?;
 
             chain.push(index);
             messages.push(message);
 
             offset_index += index_size;
-            offset += message_size.get();
+            offset += message_size_aligned.get();
         }
 
         Ok(Self {
             _chunk: chunk,
-            message_size,
+            message_size: config.message_size,
             head,
             tail,
             chain,
             messages,
         })
+    }
+
+    pub fn config(&self) -> QueueConfig {
+        QueueConfig {
+            additional_messages: self.len() - MIN_MSGS,
+            message_size: self.message_size,
+        }
     }
 
     fn is_valid_index(&self, idx: Index) -> bool {
@@ -173,7 +181,7 @@ impl Queue {
         self.chain(idx).store(val, Ordering::SeqCst);
     }
 
-    pub(self) fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.chain.len()
     }
 }

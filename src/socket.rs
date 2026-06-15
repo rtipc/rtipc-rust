@@ -11,7 +11,6 @@ use crate::VectorConfig;
 use crate::channel::ChannelVector;
 use crate::error::*;
 use crate::protocol::{create_response, parse_response};
-use crate::resource::VectorResource;
 use crate::unix::{UnixMessageRx, UnixMessageTx};
 
 pub struct Server {
@@ -35,26 +34,24 @@ impl Server {
 
     fn handle_request<F>(socket: RawFd, filter: F) -> Result<ChannelVector, TransferError>
     where
-        F: Fn(&VectorResource) -> bool,
+        F: Fn(&ChannelVector) -> bool,
     {
         let mut req = UnixMessageRx::receive(socket.as_raw_fd())?;
 
         let fds = req.take_fds();
 
-        let rsc = VectorResource::deserialize(req.content(), fds)?;
+        let vec = ChannelVector::deserialize(req.content(), fds)?;
 
-        if !filter(&rsc) {
+        if !filter(&vec) {
             return Err(TransferError::Rejected);
         }
-
-        let vec = ChannelVector::new(rsc)?;
 
         Ok(vec)
     }
 
     pub fn conditional_accept<F>(&self, filter: F) -> Result<ChannelVector, TransferError>
     where
-        F: Fn(&VectorResource) -> bool,
+        F: Fn(&ChannelVector) -> bool,
     {
         let socket = accept(self.sockfd.as_raw_fd())?;
 
@@ -77,9 +74,9 @@ pub fn client_connect_fd(
     socket: RawFd,
     vconfig: VectorConfig,
 ) -> Result<ChannelVector, TransferError> {
-    let rsc = VectorResource::allocate(&vconfig)?;
+    let vec = ChannelVector::new(&vconfig)?;
 
-    let (req_msg, fds) = rsc.serialize();
+    let (req_msg, fds) = vec.serialize();
 
     let req = UnixMessageTx::new(req_msg, fds);
 
@@ -88,8 +85,6 @@ pub fn client_connect_fd(
     let response = UnixMessageRx::receive(socket.as_raw_fd())?;
 
     parse_response(response.content().as_slice())?;
-
-    let vec = ChannelVector::new(rsc)?;
 
     Ok(vec)
 }
@@ -109,9 +104,9 @@ pub fn client_connect<P: ?Sized + NixPath>(
 
     connect(socket.as_raw_fd(), &addr)?;
 
-    let rsc = VectorResource::allocate(&vconfig)?;
+    let vec = ChannelVector::new(&vconfig)?;
 
-    let (req_msg, fds) = rsc.serialize();
+    let (req_msg, fds) = vec.serialize();
 
     let req = UnixMessageTx::new(req_msg, fds);
 
@@ -120,8 +115,6 @@ pub fn client_connect<P: ?Sized + NixPath>(
     let response = UnixMessageRx::receive(socket.as_raw_fd())?;
 
     parse_response(response.content().as_slice())?;
-
-    let vec = ChannelVector::new(rsc)?;
 
     Ok(vec)
 }

@@ -4,7 +4,7 @@ use std::{
     fmt,
     mem::size_of,
     num::NonZeroUsize,
-    os::fd::OwnedFd,
+    os::fd::{AsFd, BorrowedFd, OwnedFd},
     ptr::NonNull,
     sync::{Arc, Weak},
 };
@@ -55,6 +55,7 @@ impl Chunk {
 #[derive(Debug)]
 pub struct SharedMemory {
     me: Weak<Self>,
+    fd: OwnedFd,
     ptr: *mut (),
     size: NonZeroUsize,
 }
@@ -70,6 +71,10 @@ impl SharedMemory {
             offset,
             size,
         })
+    }
+
+    pub fn as_fd(&self) -> BorrowedFd<'_> {
+        self.fd.as_fd()
     }
 
     pub fn new(fd: OwnedFd) -> Result<Arc<Self>, Errno> {
@@ -94,6 +99,7 @@ impl SharedMemory {
 
         Ok(Arc::new_cyclic(|me| Self {
             me: me.clone(),
+            fd,
             ptr: ptr.as_ptr().cast(),
             size,
         }))

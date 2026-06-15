@@ -144,9 +144,9 @@ fn main() {
         queue: QueueConfig {
             additional_messages: 0,
             message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgCommand>()) },
-            info: b"rpc command".to_vec(),
         },
         eventfd: true,
+        info: b"rpc command".to_vec(),
     }];
 
     let s2c_channels: [ChannelConfig; 2] = [
@@ -154,17 +154,18 @@ fn main() {
             queue: QueueConfig {
                 additional_messages: 0,
                 message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgResponse>()) },
-                info: b"rpc response".to_vec(),
             },
             eventfd: false,
+            info: b"rpc response".to_vec(),
         },
         ChannelConfig {
             queue: QueueConfig {
                 additional_messages: 10,
                 message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
-                info: b"rpc event".to_vec(),
+
             },
             eventfd: true,
+            info: b"rpc event".to_vec(),
         },
     ];
 

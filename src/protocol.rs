@@ -21,7 +21,7 @@ impl ChannelEntry {
             additional_messages: config.queue.additional_messages as u32,
             message_size: config.queue.message_size.get() as u32,
             eventfd: config.eventfd as u32,
-            info_size: config.queue.info.len() as u32,
+            info_size: config.info.len() as u32,
         }
     }
 }
@@ -55,11 +55,11 @@ impl Layout {
         let channel_infos = offset;
 
         for config in &vconfig.producers {
-            offset += config.queue.info.len();
+            offset += config.info.len();
         }
 
         for config in &vconfig.consumers {
-            offset += config.queue.info.len();
+            offset += config.info.len();
         }
 
         let size = offset;
@@ -120,10 +120,10 @@ fn request_write_channel(
         entry_ptr.write_unaligned(ChannelEntry::from_config(config));
     }
 
-    if !config.queue.info.is_empty() {
-        request[*info_offset..*info_offset + config.queue.info.len()]
-            .clone_from_slice(config.queue.info.as_slice());
-        *info_offset += config.queue.info.len();
+    if !config.info.is_empty() {
+        request[*info_offset..*info_offset + config.info.len()]
+            .clone_from_slice(config.info.as_slice());
+        *info_offset += config.info.len();
     }
     *entry_offset += size_of::<ChannelEntry>();
 }
@@ -163,9 +163,9 @@ fn request_read_entry(
         queue: QueueConfig {
             additional_messages: entry.additional_messages as usize,
             message_size,
-            info,
         },
         eventfd: entry.eventfd != 0,
+        info,
     })
 }
 
