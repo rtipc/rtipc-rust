@@ -1,6 +1,6 @@
 [package]
 name = "rtipc"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 description = "Real-Time IPC, based on a zero-copy, wait-free circular message queue implementation"
 readme = "README.md"
