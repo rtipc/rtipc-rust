@@ -13,7 +13,7 @@ use rtipc::PopResult;
 use rtipc::Producer;
 use rtipc::client_connect;
 use rtipc::error::*;
-use rtipc::{ChannelConfig, QueueConfig, VectorConfig};
+use rtipc::{ChannelAttr, QueueAttr, VectorConfig};
 
 use crate::common::CommandId;
 use crate::common::MsgCommand;
@@ -140,8 +140,8 @@ fn main() {
         },
     ];
 
-    let c2s_channels: [ChannelConfig; 1] = [ChannelConfig {
-        queue: QueueConfig {
+    let c2s_channels: [ChannelAttr; 1] = [ChannelAttr {
+        queue: QueueAttr {
             additional_messages: 0,
             message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgCommand>()) },
         },
@@ -149,17 +149,17 @@ fn main() {
         info: b"rpc command".to_vec(),
     }];
 
-    let s2c_channels: [ChannelConfig; 2] = [
-        ChannelConfig {
-            queue: QueueConfig {
+    let s2c_channels: [ChannelAttr; 2] = [
+        ChannelAttr {
+            queue: QueueAttr {
                 additional_messages: 0,
                 message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgResponse>()) },
             },
             eventfd: false,
             info: b"rpc response".to_vec(),
         },
-        ChannelConfig {
-            queue: QueueConfig {
+        ChannelAttr {
+            queue: QueueAttr {
                 additional_messages: 10,
                 message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
             },

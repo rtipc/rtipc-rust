@@ -49,19 +49,19 @@ pub(crate) fn cacheline_aligned(size: usize) -> usize {
 }
 
 #[derive(Clone)]
-pub struct QueueConfig {
+pub struct QueueAttr {
     pub additional_messages: usize,
     pub message_size: NonZeroUsize,
 }
 
 #[derive(Clone)]
-pub struct ChannelConfig {
-    pub queue: QueueConfig,
+pub struct ChannelAttr {
+    pub queue: QueueAttr,
     pub eventfd: bool,
     pub info: Vec<u8>,
 }
 
-impl QueueConfig {
+impl QueueAttr {
     fn data_size(&self) -> usize {
         let n = MIN_MSGS + self.additional_messages;
 
@@ -79,8 +79,8 @@ impl QueueConfig {
 }
 
 pub struct VectorConfig {
-    pub producers: Vec<ChannelConfig>,
-    pub consumers: Vec<ChannelConfig>,
+    pub producers: Vec<ChannelAttr>,
+    pub consumers: Vec<ChannelAttr>,
     pub info: Vec<u8>,
 }
 

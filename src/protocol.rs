@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use crate::{
-    ChannelConfig, QueueConfig, VectorConfig,
+    ChannelAttr, QueueAttr, VectorConfig,
     error::*,
     header::{HEADER_SIZE, verify_header, write_header},
     log::error,
@@ -16,12 +16,12 @@ struct ChannelEntry {
 }
 
 impl ChannelEntry {
-    fn from_config(config: &ChannelConfig) -> Self {
+    fn from_attr(attr: &ChannelAttr) -> Self {
         Self {
-            additional_messages: config.queue.additional_messages as u32,
-            message_size: config.queue.message_size.get() as u32,
-            eventfd: config.eventfd as u32,
-            info_size: config.info.len() as u32,
+            additional_messages: attr.queue.additional_messages as u32,
+            message_size: attr.queue.message_size.get() as u32,
+            eventfd: attr.eventfd as u32,
+            info_size: attr.info.len() as u32,
         }
     }
 }
@@ -36,7 +36,7 @@ struct Layout {
 }
 
 impl Layout {
-    pub(self) fn calc(vconfig: &VectorConfig) -> Self {
+    pub(self) fn calc(config: &VectorConfig) -> Self {
         let mut offset = HEADER_SIZE;
 
         let vector_info_offset = offset;
@@ -47,19 +47,19 @@ impl Layout {
 
         let channel_table: usize = offset;
 
-        offset += (vconfig.producers.len() + vconfig.consumers.len()) * size_of::<ChannelEntry>();
+        offset += (config.producers.len() + config.consumers.len()) * size_of::<ChannelEntry>();
 
         let vector_info = offset;
-        offset += vconfig.info.len();
+        offset += config.info.len();
 
         let channel_infos = offset;
 
-        for config in &vconfig.producers {
-            offset += config.info.len();
+        for attr in &config.producers {
+            offset += attr.info.len();
         }
 
-        for config in &vconfig.consumers {
-            offset += config.info.len();
+        for attr in &config.consumers {
+            offset += attr.info.len();
         }
 
         let size = offset;
@@ -111,19 +111,19 @@ fn request_write<T: Copy>(request: &[u8], offset: usize, val: &T) -> Result<(), 
 
 fn request_write_channel(
     request: &mut [u8],
-    config: &ChannelConfig,
+    attr: &ChannelAttr,
     entry_offset: &mut usize,
     info_offset: &mut usize,
 ) {
     let entry_ptr = req_get_mut_ptr::<ChannelEntry>(request, *entry_offset).unwrap();
     unsafe {
-        entry_ptr.write_unaligned(ChannelEntry::from_config(config));
+        entry_ptr.write_unaligned(ChannelEntry::from_attr(attr));
     }
 
-    if !config.info.is_empty() {
-        request[*info_offset..*info_offset + config.info.len()]
-            .clone_from_slice(config.info.as_slice());
-        *info_offset += config.info.len();
+    if !attr.info.is_empty() {
+        request[*info_offset..*info_offset + attr.info.len()]
+            .clone_from_slice(attr.info.as_slice());
+        *info_offset += attr.info.len();
     }
     *entry_offset += size_of::<ChannelEntry>();
 }
@@ -132,7 +132,7 @@ fn request_read_entry(
     request: &[u8],
     entry_offset: &mut usize,
     info_offset: &mut usize,
-) -> Result<ChannelConfig, RequestError> {
+) -> Result<ChannelAttr, RequestError> {
     let entry = request_read::<ChannelEntry>(request, *entry_offset).inspect_err(|_| {
         error!("request message too short");
     })?;
@@ -159,8 +159,8 @@ fn request_read_entry(
     *entry_offset += size_of::<ChannelEntry>();
     *info_offset += info_size;
 
-    Ok(ChannelConfig {
-        queue: QueueConfig {
+    Ok(ChannelAttr {
+        queue: QueueAttr {
             additional_messages: entry.additional_messages as usize,
             message_size,
         },
@@ -206,19 +206,19 @@ pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
 
     let info: Vec<u8> = request[vector_info_offset..channel_info_offset].to_vec();
 
-    let mut consumers: Vec<ChannelConfig> = Vec::with_capacity(num_consumers);
-    let mut producers: Vec<ChannelConfig> = Vec::with_capacity(num_producers);
+    let mut consumers: Vec<ChannelAttr> = Vec::with_capacity(num_consumers);
+    let mut producers: Vec<ChannelAttr> = Vec::with_capacity(num_producers);
 
     for _ in 0..num_consumers {
-        let config = request_read_entry(request, &mut offset, &mut channel_info_offset)?;
+        let attr = request_read_entry(request, &mut offset, &mut channel_info_offset)?;
 
-        consumers.push(config);
+        consumers.push(attr);
     }
 
     for _ in 0..num_producers {
-        let config = request_read_entry(request, &mut offset, &mut channel_info_offset)?;
+        let attr = request_read_entry(request, &mut offset, &mut channel_info_offset)?;
 
-        producers.push(config);
+        producers.push(attr);
     }
 
     Ok(VectorConfig {
@@ -228,8 +228,8 @@ pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
     })
 }
 
-pub fn create_request(vconfig: &VectorConfig) -> Vec<u8> {
-    let layout = Layout::calc(vconfig);
+pub fn create_request(config: &VectorConfig) -> Vec<u8> {
+    let layout = Layout::calc(config);
 
     let mut request: Vec<u8> = vec![0; layout.size];
 
@@ -238,37 +238,37 @@ pub fn create_request(vconfig: &VectorConfig) -> Vec<u8> {
     request_write(
         request.as_mut_slice(),
         layout.vector_info_offset,
-        &(vconfig.info.len() as u32),
+        &(config.info.len() as u32),
     )
     .unwrap();
 
     request_write(
         request.as_mut_slice(),
         layout.num_channels[0],
-        &(vconfig.producers.len() as u32),
+        &(config.producers.len() as u32),
     )
     .unwrap();
 
     request_write(
         request.as_mut_slice(),
         layout.num_channels[1],
-        &(vconfig.consumers.len() as u32),
+        &(config.consumers.len() as u32),
     )
     .unwrap();
 
     let mut entry_offset = layout.channel_table;
 
-    request[layout.vector_info..layout.vector_info + vconfig.info.len()]
-        .clone_from_slice(vconfig.info.as_slice());
+    request[layout.vector_info..layout.vector_info + config.info.len()]
+        .clone_from_slice(config.info.as_slice());
 
     let mut info_offset = layout.channel_infos;
 
-    vconfig
+    config
         .producers
         .iter()
         .for_each(|c| request_write_channel(&mut request, c, &mut entry_offset, &mut info_offset));
 
-    vconfig
+    config
         .consumers
         .iter()
         .for_each(|c| request_write_channel(&mut request, c, &mut entry_offset, &mut info_offset));

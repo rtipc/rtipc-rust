@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
-use crate::QueueConfig;
+use crate::QueueAttr;
 use crate::cacheline_aligned;
 use crate::error::*;
 use crate::shm::{Chunk, Span};
@@ -72,12 +72,12 @@ pub(crate) struct Queue {
 }
 
 impl Queue {
-    pub(crate) fn new(chunk: Chunk, config: &QueueConfig) -> Result<Self, ShmMapError> {
-        let queue_len = config.additional_messages + MIN_MSGS;
+    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+        let queue_len = attr.additional_messages + MIN_MSGS;
         let index_size = size_of::<Index>();
         let queue_size = (2 + queue_len) * index_size;
         let message_size_aligned =
-            NonZeroUsize::new(cacheline_aligned(config.message_size.get())).unwrap();
+            NonZeroUsize::new(cacheline_aligned(attr.message_size.get())).unwrap();
 
         let mut offset_index = 0;
         let mut offset = cacheline_aligned(queue_size);
@@ -107,7 +107,7 @@ impl Queue {
 
         Ok(Self {
             _chunk: chunk,
-            message_size: config.message_size,
+            message_size: attr.message_size,
             head,
             tail,
             chain,
@@ -115,8 +115,8 @@ impl Queue {
         })
     }
 
-    pub fn config(&self) -> QueueConfig {
-        QueueConfig {
+    pub fn attr(&self) -> QueueAttr {
+        QueueAttr {
             additional_messages: self.len() - MIN_MSGS,
             message_size: self.message_size,
         }
