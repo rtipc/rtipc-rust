@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use crate::{
-    ChannelAttr, QueueAttr, VectorConfig,
+    ChannelAttr, GroupAttr, QueueAttr,
     error::*,
     header::{HEADER_SIZE, verify_header, write_header},
     log::error,
@@ -27,19 +27,19 @@ impl ChannelEntry {
 }
 
 struct Layout {
-    vector_info_offset: usize,
+    group_info_offset: usize,
     num_channels: [usize; 2],
     channel_table: usize,
-    vector_info: usize,
+    group_info: usize,
     channel_infos: usize,
     size: usize,
 }
 
 impl Layout {
-    pub(self) fn calc(config: &VectorConfig) -> Self {
+    pub(self) fn calc(config: &GroupAttr) -> Self {
         let mut offset = HEADER_SIZE;
 
-        let vector_info_offset = offset;
+        let group_info_offset = offset;
         offset += size_of::<u32>();
 
         let num_channels: [usize; 2] = [offset, offset + size_of::<u32>()];
@@ -49,7 +49,7 @@ impl Layout {
 
         offset += (config.producers.len() + config.consumers.len()) * size_of::<ChannelEntry>();
 
-        let vector_info = offset;
+        let group_info = offset;
         offset += config.info.len();
 
         let channel_infos = offset;
@@ -65,10 +65,10 @@ impl Layout {
         let size = offset;
 
         Self {
-            vector_info_offset,
+            group_info_offset,
             num_channels,
             channel_table,
-            vector_info,
+            group_info,
             channel_infos,
             size,
         }
@@ -169,7 +169,7 @@ fn request_read_entry(
     })
 }
 
-pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
+pub fn parse_request(request: &[u8]) -> Result<GroupAttr, RequestError> {
     let header = request
         .get(0..HEADER_SIZE)
         .ok_or(RequestError::OutOfBounds)?;
@@ -180,7 +180,7 @@ pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
 
     let mut offset: usize = HEADER_SIZE;
 
-    let vector_info_size = request_read::<u32>(request, offset).inspect_err(|_| {
+    let group_info_size = request_read::<u32>(request, offset).inspect_err(|_| {
         error!("request message too short");
     })? as usize;
     offset += size_of::<u32>();
@@ -195,16 +195,16 @@ pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
     })? as usize;
     offset += size_of::<u32>();
 
-    let vector_info_offset = offset + (num_consumers + num_producers) * size_of::<ChannelEntry>();
+    let group_info_offset = offset + (num_consumers + num_producers) * size_of::<ChannelEntry>();
 
-    let mut channel_info_offset = vector_info_offset + vector_info_size;
+    let mut channel_info_offset = group_info_offset + group_info_size;
 
     if channel_info_offset > request.len() {
         error!("request message too small for vector info");
         return Err(RequestError::OutOfBounds);
     }
 
-    let info: Vec<u8> = request[vector_info_offset..channel_info_offset].to_vec();
+    let info: Vec<u8> = request[group_info_offset..channel_info_offset].to_vec();
 
     let mut consumers: Vec<ChannelAttr> = Vec::with_capacity(num_consumers);
     let mut producers: Vec<ChannelAttr> = Vec::with_capacity(num_producers);
@@ -221,14 +221,14 @@ pub fn parse_request(request: &[u8]) -> Result<VectorConfig, RequestError> {
         producers.push(attr);
     }
 
-    Ok(VectorConfig {
+    Ok(GroupAttr {
         consumers,
         producers,
         info,
     })
 }
 
-pub fn create_request(config: &VectorConfig) -> Vec<u8> {
+pub fn create_request(config: &GroupAttr) -> Vec<u8> {
     let layout = Layout::calc(config);
 
     let mut request: Vec<u8> = vec![0; layout.size];
@@ -237,7 +237,7 @@ pub fn create_request(config: &VectorConfig) -> Vec<u8> {
 
     request_write(
         request.as_mut_slice(),
-        layout.vector_info_offset,
+        layout.group_info_offset,
         &(config.info.len() as u32),
     )
     .unwrap();
@@ -258,7 +258,7 @@ pub fn create_request(config: &VectorConfig) -> Vec<u8> {
 
     let mut entry_offset = layout.channel_table;
 
-    request[layout.vector_info..layout.vector_info + config.info.len()]
+    request[layout.group_info..layout.group_info + config.info.len()]
         .clone_from_slice(config.info.as_slice());
 
     let mut info_offset = layout.channel_infos;

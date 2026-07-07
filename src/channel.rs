@@ -11,7 +11,7 @@ use std::{
 use nix::sys::eventfd::EventFd;
 
 use crate::{
-    ChannelAttr, QueueAttr, VectorConfig,
+    ChannelAttr, GroupAttr, QueueAttr,
     error::*,
     protocol::{create_request, parse_request},
     queue::{ConsumerQueue, ForcePushResult, PopResult, ProducerQueue, Queue, TryPushResult},
@@ -212,15 +212,15 @@ impl Channel {
     }
 }
 
-pub struct ChannelVector {
+pub struct ChannelGroup {
     shm: Arc<SharedMemory>,
     producers: Vec<Option<Channel>>,
     consumers: Vec<Option<Channel>>,
     info: Vec<u8>,
 }
 
-impl ChannelVector {
-    pub fn new(config: &VectorConfig) -> Result<Self, ResourceError> {
+impl ChannelGroup {
+    pub fn new(config: &GroupAttr) -> Result<Self, ResourceError> {
         let mut producers = Vec::<Option<Channel>>::with_capacity(config.producers.len());
         let mut consumers = Vec::<Option<Channel>>::with_capacity(config.consumers.len());
 
@@ -277,20 +277,10 @@ impl ChannelVector {
         &self.info
     }
 
-    pub fn config(&self) -> VectorConfig {
-        let producers = self
-            .producers
-            .iter()
-            .flatten()
-            .map(|c| c.attr())
-            .collect();
-        let consumers = self
-            .consumers
-            .iter()
-            .flatten()
-            .map(|c| c.attr())
-            .collect();
-        VectorConfig {
+    pub fn config(&self) -> GroupAttr {
+        let producers = self.producers.iter().flatten().map(|c| c.attr()).collect();
+        let consumers = self.consumers.iter().flatten().map(|c| c.attr()).collect();
+        GroupAttr {
             producers,
             consumers,
             info: self.info.clone(),
@@ -351,8 +341,7 @@ impl ChannelVector {
             } else {
                 None
             };
-            let channel =
-                Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
@@ -367,8 +356,7 @@ impl ChannelVector {
             } else {
                 None
             };
-            let channel =
-                Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }

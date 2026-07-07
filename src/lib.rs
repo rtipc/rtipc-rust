@@ -22,7 +22,7 @@ pub use crate::cache_env::max_cacheline_size;
 #[cfg(not(feature = "predefined_cacheline_size"))]
 pub use crate::cache_linux::max_cacheline_size;
 
-pub use channel::{ChannelVector, Consumer, Producer};
+pub use channel::{ChannelGroup, Consumer, Producer};
 pub use error::*;
 pub use queue::{ForcePushResult, PopResult, TryPushResult};
 pub use socket::{Server, client_connect, client_connect_fd};
@@ -78,13 +78,13 @@ impl QueueAttr {
     }
 }
 
-pub struct VectorConfig {
+pub struct GroupAttr {
     pub producers: Vec<ChannelAttr>,
     pub consumers: Vec<ChannelAttr>,
     pub info: Vec<u8>,
 }
 
-impl VectorConfig {
+impl GroupAttr {
     pub fn count_producer_eventfds(&self) -> usize {
         self.producers.iter().map(|c| c.eventfd as usize).sum()
     }

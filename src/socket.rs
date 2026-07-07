@@ -7,8 +7,8 @@ use nix::unistd::unlink;
 use std::os::fd::{OwnedFd, RawFd};
 use std::os::unix::io::AsRawFd;
 
-use crate::VectorConfig;
-use crate::channel::ChannelVector;
+use crate::GroupAttr;
+use crate::channel::ChannelGroup;
 use crate::error::*;
 use crate::protocol::{create_response, parse_response};
 use crate::unix::{UnixMessageRx, UnixMessageTx};
@@ -32,26 +32,26 @@ impl Server {
         Ok(Self { sockfd, addr })
     }
 
-    fn handle_request<F>(socket: RawFd, filter: F) -> Result<ChannelVector, TransferError>
+    fn handle_request<F>(socket: RawFd, filter: F) -> Result<ChannelGroup, TransferError>
     where
-        F: Fn(&ChannelVector) -> bool,
+        F: Fn(&ChannelGroup) -> bool,
     {
         let mut req = UnixMessageRx::receive(socket.as_raw_fd())?;
 
         let fds = req.take_fds();
 
-        let vec = ChannelVector::deserialize(req.content(), fds)?;
+        let grp = ChannelGroup::deserialize(req.content(), fds)?;
 
-        if !filter(&vec) {
+        if !filter(&grp) {
             return Err(TransferError::Rejected);
         }
 
-        Ok(vec)
+        Ok(grp)
     }
 
-    pub fn conditional_accept<F>(&self, filter: F) -> Result<ChannelVector, TransferError>
+    pub fn conditional_accept<F>(&self, filter: F) -> Result<ChannelGroup, TransferError>
     where
-        F: Fn(&ChannelVector) -> bool,
+        F: Fn(&ChannelGroup) -> bool,
     {
         let socket = accept(self.sockfd.as_raw_fd())?;
 
@@ -65,18 +65,15 @@ impl Server {
         result
     }
 
-    pub fn accept(&self) -> Result<ChannelVector, TransferError> {
+    pub fn accept(&self) -> Result<ChannelGroup, TransferError> {
         self.conditional_accept(|_| true)
     }
 }
 
-pub fn client_connect_fd(
-    socket: RawFd,
-    vconfig: VectorConfig,
-) -> Result<ChannelVector, TransferError> {
-    let vec = ChannelVector::new(&vconfig)?;
+pub fn client_connect_fd(socket: RawFd, attr: GroupAttr) -> Result<ChannelGroup, TransferError> {
+    let grp = ChannelGroup::new(&attr)?;
 
-    let (req_msg, fds) = vec.serialize();
+    let (req_msg, fds) = grp.serialize();
 
     let req = UnixMessageTx::new(req_msg, fds);
 
@@ -86,13 +83,13 @@ pub fn client_connect_fd(
 
     parse_response(response.content().as_slice())?;
 
-    Ok(vec)
+    Ok(grp)
 }
 
 pub fn client_connect<P: ?Sized + NixPath>(
     path: &P,
-    vconfig: VectorConfig,
-) -> Result<ChannelVector, TransferError> {
+    attr: GroupAttr,
+) -> Result<ChannelGroup, TransferError> {
     let socket = socket(
         AddressFamily::Unix,
         SockType::SeqPacket,
@@ -104,9 +101,9 @@ pub fn client_connect<P: ?Sized + NixPath>(
 
     connect(socket.as_raw_fd(), &addr)?;
 
-    let vec = ChannelVector::new(&vconfig)?;
+    let grp = ChannelGroup::new(&attr)?;
 
-    let (req_msg, fds) = vec.serialize();
+    let (req_msg, fds) = grp.serialize();
 
     let req = UnixMessageTx::new(req_msg, fds);
 
@@ -116,7 +113,7 @@ pub fn client_connect<P: ?Sized + NixPath>(
 
     parse_response(response.content().as_slice())?;
 
-    Ok(vec)
+    Ok(grp)
 }
 
 impl Drop for Server {

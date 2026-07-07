@@ -2,7 +2,7 @@ use nix::sys::socket::Backlog;
 
 use std::time::Duration;
 
-use rtipc::ChannelVector;
+use rtipc::ChannelGroup;
 use rtipc::Consumer;
 use rtipc::PopResult;
 use rtipc::Producer;
@@ -26,23 +26,23 @@ struct App {
     event: Producer<MsgEvent>,
 }
 
-fn print_vector(vec: &ChannelVector) {
-    let vec_info = str::from_utf8(vec.info()).unwrap();
-    let cmd_info = str::from_utf8(vec.consumer_info(0).unwrap()).unwrap();
-    let rsp_info = str::from_utf8(vec.producer_info(0).unwrap()).unwrap();
-    let evt_info = str::from_utf8(vec.producer_info(1).unwrap()).unwrap();
+fn print_group(grp: &ChannelGroup) {
+    let grp_info = str::from_utf8(grp.info()).unwrap();
+    let cmd_info = str::from_utf8(grp.consumer_info(0).unwrap()).unwrap();
+    let rsp_info = str::from_utf8(grp.producer_info(0).unwrap()).unwrap();
+    let evt_info = str::from_utf8(grp.producer_info(1).unwrap()).unwrap();
     println!(
-        "server received request vec={} cmd={} rsp={} evt={}",
-        vec_info, cmd_info, rsp_info, evt_info
+        "server received request grp={} cmd={} rsp={} evt={}",
+        grp_info, cmd_info, rsp_info, evt_info
     );
 }
 
 impl App {
-    pub fn new(mut vec: ChannelVector) -> Self {
-        print_vector(&vec);
-        let command = vec.take_consumer(0).unwrap();
-        let response = vec.take_producer(0).unwrap();
-        let event = vec.take_producer(1).unwrap();
+    pub fn new(mut grp: ChannelGroup) -> Self {
+        print_group(&grp);
+        let command = grp.take_consumer(0).unwrap();
+        let response = grp.take_producer(0).unwrap();
+        let event = grp.take_producer(1).unwrap();
 
         Self {
             command,
@@ -117,7 +117,7 @@ impl App {
 fn main() {
     let backlog = Backlog::new(1).unwrap();
     let server = Server::new("rtipc.sock", backlog).unwrap();
-    let vec = server.conditional_accept(|_| true).unwrap();
-    let mut app = App::new(vec);
+    let grp = server.conditional_accept(|_| true).unwrap();
+    let mut app = App::new(grp);
     app.run();
 }

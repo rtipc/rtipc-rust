@@ -7,13 +7,13 @@ use std::time::Duration;
 
 use nix::errno::Errno;
 
-use rtipc::ChannelVector;
+use rtipc::ChannelGroup;
 use rtipc::Consumer;
 use rtipc::PopResult;
 use rtipc::Producer;
 use rtipc::client_connect;
 use rtipc::error::*;
-use rtipc::{ChannelAttr, QueueAttr, VectorConfig};
+use rtipc::{ChannelAttr, GroupAttr, QueueAttr};
 
 use crate::common::CommandId;
 use crate::common::MsgCommand;
@@ -63,10 +63,10 @@ struct App {
 }
 
 impl App {
-    pub fn new(mut vec: ChannelVector) -> Self {
-        let command = vec.take_producer(0).unwrap();
-        let response = vec.take_consumer(0).unwrap();
-        let event = vec.take_consumer(1).unwrap();
+    pub fn new(mut grp: ChannelGroup) -> Self {
+        let command = grp.take_producer(0).unwrap();
+        let response = grp.take_consumer(0).unwrap();
+        let event = grp.take_consumer(1).unwrap();
 
         let event_listener = Some(thread::spawn(move || handle_events(event)));
 
@@ -168,13 +168,13 @@ fn main() {
         },
     ];
 
-    let vparam = VectorConfig {
+    let vparam = GroupAttr {
         producers: c2s_channels.to_vec(),
         consumers: s2c_channels.to_vec(),
         info: b"rpc example".to_vec(),
     };
-    let vec = client_connect("rtipc.sock", vparam).unwrap();
-    let mut app = App::new(vec);
+    let grp = client_connect("rtipc.sock", vparam).unwrap();
+    let mut app = App::new(grp);
     thread::sleep(time::Duration::from_millis(100));
     app.run(&commands);
 }
