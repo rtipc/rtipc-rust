@@ -115,13 +115,6 @@ impl Queue {
         })
     }
 
-    pub fn attr(&self) -> QueueAttr {
-        QueueAttr {
-            additional_messages: self.len() - MIN_MSGS,
-            message_size: self.message_size,
-        }
-    }
-
     fn is_valid_index(&self, idx: Index) -> bool {
         idx < self.len() as u32
     }

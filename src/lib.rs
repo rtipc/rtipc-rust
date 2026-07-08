@@ -77,7 +77,7 @@ impl QueueAttr {
         NonZeroUsize::new(self.queue_size() + self.data_size()).unwrap()
     }
 }
-
+#[derive(Clone)]
 pub struct GroupAttr {
     pub producers: Vec<ChannelAttr>,
     pub consumers: Vec<ChannelAttr>,

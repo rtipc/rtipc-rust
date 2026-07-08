@@ -70,8 +70,8 @@ impl Server {
     }
 }
 
-pub fn client_connect_fd(socket: RawFd, attr: GroupAttr) -> Result<ChannelGroup, TransferError> {
-    let grp = ChannelGroup::new(&attr)?;
+pub fn client_connect_fd(socket: RawFd, attr: &GroupAttr) -> Result<ChannelGroup, TransferError> {
+    let grp = ChannelGroup::from_attr(attr)?;
 
     let (req_msg, fds) = grp.serialize();
 
@@ -88,7 +88,7 @@ pub fn client_connect_fd(socket: RawFd, attr: GroupAttr) -> Result<ChannelGroup,
 
 pub fn client_connect<P: ?Sized + NixPath>(
     path: &P,
-    attr: GroupAttr,
+    attr: &GroupAttr,
 ) -> Result<ChannelGroup, TransferError> {
     let socket = socket(
         AddressFamily::Unix,
@@ -101,7 +101,7 @@ pub fn client_connect<P: ?Sized + NixPath>(
 
     connect(socket.as_raw_fd(), &addr)?;
 
-    let grp = ChannelGroup::new(&attr)?;
+    let grp = ChannelGroup::from_attr(attr)?;
 
     let (req_msg, fds) = grp.serialize();
 

@@ -163,7 +163,6 @@ impl<T: Copy> Consumer<T> {
 
 pub(crate) struct Channel {
     queue: Queue,
-    info: Vec<u8>,
     eventfd: Option<EventFd>,
 }
 
@@ -179,7 +178,7 @@ impl Channel {
         } else {
             None
         };
-        let channel = Self::new(&attr.queue, eventfd, &attr.info, shm, shm_offset)?;
+        let channel = Self::new(&attr.queue, eventfd, shm, shm_offset)?;
         channel.queue.init();
         Ok(channel)
     }
@@ -187,7 +186,6 @@ impl Channel {
     pub fn new(
         attr: &QueueAttr,
         eventfd: Option<EventFd>,
-        info: &[u8],
         shm: &SharedMemory,
         shm_offset: &mut usize,
     ) -> Result<Self, ResourceError> {
@@ -199,33 +197,25 @@ impl Channel {
 
         Ok(Channel {
             queue,
-            info: info.to_vec(),
             eventfd,
         })
-    }
-    pub fn attr(&self) -> ChannelAttr {
-        ChannelAttr {
-            queue: self.queue.attr(),
-            eventfd: self.eventfd.is_some(),
-            info: self.info.clone(),
-        }
     }
 }
 
 pub struct ChannelGroup {
+    attr: GroupAttr,
     shm: Arc<SharedMemory>,
     producers: Vec<Option<Channel>>,
     consumers: Vec<Option<Channel>>,
-    info: Vec<u8>,
 }
 
 impl ChannelGroup {
-    pub fn new(config: &GroupAttr) -> Result<Self, ResourceError> {
-        let mut producers = Vec::<Option<Channel>>::with_capacity(config.producers.len());
-        let mut consumers = Vec::<Option<Channel>>::with_capacity(config.consumers.len());
+    pub fn from_attr(attr: &GroupAttr) -> Result<Self, ResourceError> {
+        let mut producers = Vec::<Option<Channel>>::with_capacity(attr.producers.len());
+        let mut consumers = Vec::<Option<Channel>>::with_capacity(attr.consumers.len());
 
         let shm_size =
-            NonZeroUsize::new(config.calc_shm_size()).ok_or(ResourceError::InvalidArgument)?;
+            NonZeroUsize::new(attr.calc_shm_size()).ok_or(ResourceError::InvalidArgument)?;
 
         let shmfd = shmfd_create(shm_size)?;
 
@@ -233,32 +223,24 @@ impl ChannelGroup {
 
         let mut shm_offset = 0;
 
-        for attr in &config.producers {
+        for attr in &attr.producers {
             let channel = Channel::allocate(attr, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }
 
-        for attr in &config.consumers {
+        for attr in &attr.consumers {
             let channel = Channel::allocate(attr, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
 
         Ok(Self {
+            attr: attr.clone(),
             shm,
             consumers,
             producers,
-            info: config.info.clone(),
         })
-    }
-
-    pub fn consumer_info(&self, index: usize) -> Option<&Vec<u8>> {
-        self.consumers.get(index)?.as_ref().map(|c| &c.info)
-    }
-
-    pub fn producer_info(&self, index: usize) -> Option<&Vec<u8>> {
-        self.producers.get(index)?.as_ref().map(|c| &c.info)
     }
 
     pub fn take_consumer<T: Copy>(&mut self, index: usize) -> Option<Consumer<T>> {
@@ -273,18 +255,8 @@ impl ChannelGroup {
         Some(producer)
     }
 
-    pub fn info(&self) -> &Vec<u8> {
-        &self.info
-    }
-
-    pub fn config(&self) -> GroupAttr {
-        let producers = self.producers.iter().flatten().map(|c| c.attr()).collect();
-        let consumers = self.consumers.iter().flatten().map(|c| c.attr()).collect();
-        GroupAttr {
-            producers,
-            consumers,
-            info: self.info.clone(),
-        }
+    pub fn get_attr(&self) -> &GroupAttr {
+        &self.attr
     }
 
     fn collect_eventfds(&self) -> Vec<BorrowedFd<'_>> {
@@ -305,22 +277,21 @@ impl ChannelGroup {
     }
 
     pub fn serialize(&self) -> (Vec<u8>, Vec<BorrowedFd<'_>>) {
-        let config = self.config();
-        let req = create_request(&config);
+        let req = create_request(&self.attr);
         (req, self.collect_eventfds())
     }
 
     pub fn deserialize(request: &[u8], mut fds: VecDeque<OwnedFd>) -> Result<Self, TransferError> {
-        let config = parse_request(request)?;
+        let attr = parse_request(request)?;
 
-        let mut producers = Vec::<Option<Channel>>::with_capacity(config.producers.len());
-        let mut consumers = Vec::<Option<Channel>>::with_capacity(config.consumers.len());
+        let mut producers = Vec::<Option<Channel>>::with_capacity(attr.producers.len());
+        let mut consumers = Vec::<Option<Channel>>::with_capacity(attr.consumers.len());
 
         let shmfd = fds
             .pop_front()
             .ok_or(TransferError::MissingFileDescriptor)?;
 
-        let n_consumer_fds = config.count_consumer_eventfds();
+        let n_consumer_fds = attr.count_consumer_eventfds();
 
         let mut producer_fds = fds.split_off(n_consumer_fds);
         let mut consumer_fds = fds;
@@ -331,7 +302,7 @@ impl ChannelGroup {
 
         let mut shm_offset = 0;
 
-        for attr in &config.consumers {
+        for attr in &attr.consumers {
             let eventfd = if attr.eventfd {
                 let fd = consumer_fds
                     .pop_front()
@@ -341,12 +312,12 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.queue, eventfd, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
 
-        for attr in &config.producers {
+        for attr in &attr.producers {
             let eventfd = if attr.eventfd {
                 let fd = producer_fds
                     .pop_front()
@@ -356,16 +327,16 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.queue, eventfd, &attr.info, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.queue, eventfd, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }
 
         Ok(Self {
+            attr,
             shm,
             consumers,
             producers,
-            info: config.info.clone(),
         })
     }
 }

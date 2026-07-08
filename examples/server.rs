@@ -27,10 +27,11 @@ struct App {
 }
 
 fn print_group(grp: &ChannelGroup) {
-    let grp_info = str::from_utf8(grp.info()).unwrap();
-    let cmd_info = str::from_utf8(grp.consumer_info(0).unwrap()).unwrap();
-    let rsp_info = str::from_utf8(grp.producer_info(0).unwrap()).unwrap();
-    let evt_info = str::from_utf8(grp.producer_info(1).unwrap()).unwrap();
+    let attr = grp.get_attr();
+    let grp_info = str::from_utf8(attr.info.iter().as_slice()).unwrap();
+    let cmd_info = str::from_utf8(&attr.consumers.get(0).unwrap().info).unwrap();
+    let rsp_info = str::from_utf8(&attr.producers.get(0).unwrap().info).unwrap();
+    let evt_info = str::from_utf8(&attr.producers.get(1).unwrap().info).unwrap();
     println!(
         "server received request grp={} cmd={} rsp={} evt={}",
         grp_info, cmd_info, rsp_info, evt_info

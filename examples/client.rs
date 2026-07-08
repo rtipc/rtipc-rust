@@ -168,12 +168,12 @@ fn main() {
         },
     ];
 
-    let vparam = GroupAttr {
+    let attr = GroupAttr {
         producers: c2s_channels.to_vec(),
         consumers: s2c_channels.to_vec(),
         info: b"rpc example".to_vec(),
     };
-    let grp = client_connect("rtipc.sock", vparam).unwrap();
+    let grp = client_connect("rtipc.sock", &attr).unwrap();
     let mut app = App::new(grp);
     thread::sleep(time::Duration::from_millis(100));
     app.run(&commands);
