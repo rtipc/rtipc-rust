@@ -178,7 +178,7 @@ impl Channel {
         } else {
             None
         };
-        let channel = Self::new(&attr.queue, eventfd, shm, shm_offset)?;
+        let channel = Self::new(&attr.to_queue_attr(), eventfd, shm, shm_offset)?;
         channel.queue.init();
         Ok(channel)
     }
@@ -195,10 +195,7 @@ impl Channel {
 
         *shm_offset += shm_size.get();
 
-        Ok(Channel {
-            queue,
-            eventfd,
-        })
+        Ok(Channel { queue, eventfd })
     }
 }
 
@@ -312,7 +309,7 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.queue, eventfd, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
@@ -327,7 +324,7 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.queue, eventfd, &shm, &mut shm_offset)?;
+            let channel = Channel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }

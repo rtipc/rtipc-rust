@@ -13,7 +13,7 @@ use rtipc::PopResult;
 use rtipc::Producer;
 use rtipc::client_connect;
 use rtipc::error::*;
-use rtipc::{ChannelAttr, GroupAttr, QueueAttr};
+use rtipc::{ChannelAttr, GroupAttr};
 
 use crate::common::CommandId;
 use crate::common::MsgCommand;
@@ -141,28 +141,22 @@ fn main() {
     ];
 
     let c2s_channels: [ChannelAttr; 1] = [ChannelAttr {
-        queue: QueueAttr {
-            additional_messages: 0,
-            message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgCommand>()) },
-        },
+        additional_messages: 0,
+        message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgCommand>()) },
         eventfd: true,
         info: b"rpc command".to_vec(),
     }];
 
     let s2c_channels: [ChannelAttr; 2] = [
         ChannelAttr {
-            queue: QueueAttr {
-                additional_messages: 0,
-                message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgResponse>()) },
-            },
+            additional_messages: 0,
+            message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgResponse>()) },
             eventfd: false,
             info: b"rpc response".to_vec(),
         },
         ChannelAttr {
-            queue: QueueAttr {
-                additional_messages: 10,
-                message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
-            },
+            additional_messages: 10,
+            message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
             eventfd: true,
             info: b"rpc event".to_vec(),
         },

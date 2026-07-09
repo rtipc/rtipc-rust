@@ -54,13 +54,6 @@ pub struct QueueAttr {
     pub message_size: NonZeroUsize,
 }
 
-#[derive(Clone)]
-pub struct ChannelAttr {
-    pub queue: QueueAttr,
-    pub eventfd: bool,
-    pub info: Vec<u8>,
-}
-
 impl QueueAttr {
     fn data_size(&self) -> usize {
         let n = MIN_MSGS + self.additional_messages;
@@ -77,6 +70,24 @@ impl QueueAttr {
         NonZeroUsize::new(self.queue_size() + self.data_size()).unwrap()
     }
 }
+
+#[derive(Clone)]
+pub struct ChannelAttr {
+    pub additional_messages: usize,
+    pub message_size: NonZeroUsize,
+    pub eventfd: bool,
+    pub info: Vec<u8>,
+}
+
+impl ChannelAttr {
+    fn to_queue_attr(&self) -> QueueAttr {
+        QueueAttr {
+            additional_messages: self.additional_messages,
+            message_size: self.message_size,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct GroupAttr {
     pub producers: Vec<ChannelAttr>,
@@ -97,13 +108,13 @@ impl GroupAttr {
         let producers_size: usize = self
             .producers
             .iter()
-            .map(|c| c.queue.shm_size().get())
+            .map(|c| c.to_queue_attr().shm_size().get())
             .sum();
 
         let consumers_size: usize = self
             .consumers
             .iter()
-            .map(|c| c.queue.shm_size().get())
+            .map(|c| c.to_queue_attr().shm_size().get())
             .sum();
 
         producers_size + consumers_size

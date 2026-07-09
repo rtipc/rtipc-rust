@@ -18,8 +18,8 @@ struct ChannelEntry {
 impl ChannelEntry {
     fn from_attr(attr: &ChannelAttr) -> Self {
         Self {
-            additional_messages: attr.queue.additional_messages as u32,
-            message_size: attr.queue.message_size.get() as u32,
+            additional_messages: attr.additional_messages as u32,
+            message_size: attr.message_size.get() as u32,
             eventfd: attr.eventfd as u32,
             info_size: attr.info.len() as u32,
         }
@@ -160,10 +160,8 @@ fn request_read_entry(
     *info_offset += info_size;
 
     Ok(ChannelAttr {
-        queue: QueueAttr {
-            additional_messages: entry.additional_messages as usize,
-            message_size,
-        },
+        additional_messages: entry.additional_messages as usize,
+        message_size,
         eventfd: entry.eventfd != 0,
         info,
     })
