@@ -62,7 +62,7 @@ pub enum TryPushResult {
     Success,
 }
 
-pub(crate) struct Queue {
+struct Queue {
     _chunk: Chunk,
     message_size: NonZeroUsize,
     head: *mut Index,
@@ -72,7 +72,7 @@ pub(crate) struct Queue {
 }
 
 impl Queue {
-    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+    fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
         let queue_len = attr.additional_messages + MIN_MSGS;
         let index_size = size_of::<Index>();
         let queue_size = (2 + queue_len) * index_size;
@@ -119,13 +119,9 @@ impl Queue {
         idx < self.len() as u32
     }
 
-    pub(crate) fn init(&self) {
+    fn init_shm(&self) {
         self.tail_store(INVALID_INDEX);
         self.head_store(INVALID_INDEX);
-    }
-
-    pub(crate) fn message_size(&self) -> NonZeroUsize {
-        self.message_size
     }
 
     fn tail(&self) -> &AtomicIndex {
@@ -191,7 +187,8 @@ pub struct ProducerQueue {
 }
 
 impl ProducerQueue {
-    pub(crate) fn new(queue: Queue) -> Self {
+    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+        let queue = Queue::new(chunk, attr)?;
         let queue_len = queue.len();
         let mut chain: Vec<Index> = Vec::with_capacity(queue_len);
         let last = queue_len - 1;
@@ -204,13 +201,22 @@ impl ProducerQueue {
         queue.queue_store(last as Index, 0);
         chain.push(0);
 
-        Self {
+        Ok(Self {
             queue,
             head: INVALID_INDEX,
             chain,
             current: 0,
             overrun: INVALID_INDEX,
-        }
+        })
+    }
+
+
+    pub(crate) fn message_size(&self) -> NonZeroUsize {
+        self.queue.message_size
+    }
+
+    pub(crate) fn init_shm(&self) {
+        self.queue.init_shm();
     }
 
     pub(crate) fn current_message(&self) -> *mut () {
@@ -424,13 +430,22 @@ pub struct ConsumerQueue {
 }
 
 impl ConsumerQueue {
-    pub(crate) fn new(queue: Queue) -> Self {
-        Self { queue, current: 0 }
+    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+        let queue = Queue::new(chunk, attr)?;
+        Ok(Self { queue, current: 0 })
     }
 
     pub(crate) fn current_message(&self) -> Option<*const ()> {
         let ptr = self.queue.messages.get(self.current as usize)?;
         Some(ptr.cast())
+    }
+
+    pub(crate) fn message_size(&self) -> NonZeroUsize {
+        self.queue.message_size
+    }
+
+    pub(crate) fn init_shm(&self) {
+        self.queue.init_shm();
     }
 
     pub(crate) fn flush(&mut self) -> PopResult {

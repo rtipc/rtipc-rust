@@ -14,29 +14,25 @@ use crate::{
     ChannelAttr, GroupAttr, QueueAttr,
     error::*,
     protocol::{create_request, parse_request},
-    queue::{ConsumerQueue, ForcePushResult, PopResult, ProducerQueue, Queue, TryPushResult},
+    queue::{ConsumerQueue, ForcePushResult, PopResult, ProducerQueue, TryPushResult},
     shm::SharedMemory,
     unix::{check_memfd, eventfd_create, into_eventfd, shmfd_create},
 };
 
 pub struct Producer<T: Copy> {
-    queue: ProducerQueue,
-    eventfd: Option<EventFd>,
+    channel: ProducerChannel,
     cache: Option<Box<T>>,
     _type: PhantomData<T>,
 }
 
 impl<T: Copy> Producer<T> {
-    fn new(channel: Channel) -> Result<Self, ShmMapError> {
+    fn new(channel: ProducerChannel) -> Result<Self, ShmMapError> {
         if size_of::<T>() > channel.queue.message_size().get() {
             return Err(ShmMapError::OutOfBounds);
         }
 
-        let queue = ProducerQueue::new(channel.queue);
-
         Ok(Self {
-            queue,
-            eventfd: channel.eventfd,
+            channel,
             cache: None,
             _type: PhantomData,
         })
@@ -46,7 +42,7 @@ impl<T: Copy> Producer<T> {
         if let Some(ref mut cache) = self.cache {
             cache.borrow_mut()
         } else {
-            unsafe { &mut *self.queue.current_message().cast::<T>() }
+            unsafe { &mut *self.channel.queue.current_message().cast::<T>() }
         }
     }
 
@@ -55,10 +51,10 @@ impl<T: Copy> Producer<T> {
             *self.current_message() = *cache.clone();
         }
 
-        let result = self.queue.force_push();
+        let result = self.channel.queue.force_push();
 
         if result == ForcePushResult::Success {
-            self.eventfd.as_ref().map(|fd| fd.write(1));
+            self.channel.eventfd.as_ref().map(|fd| fd.write(1));
         }
 
         result
@@ -66,25 +62,25 @@ impl<T: Copy> Producer<T> {
 
     pub fn try_push(&mut self) -> TryPushResult {
         if let Some(ref cache) = self.cache {
-            if self.queue.full() {
+            if self.channel.queue.full() {
                 return TryPushResult::QueueFull;
             }
             *self.current_message() = *cache.clone();
         }
 
-        let result = self.queue.try_push();
+        let result = self.channel.queue.try_push();
         if result == TryPushResult::Success {
-            self.eventfd.as_ref().map(|fd| fd.write(1));
+            self.channel.eventfd.as_ref().map(|fd| fd.write(1));
         }
         result
     }
 
     pub fn eventfd(&self) -> Option<BorrowedFd<'_>> {
-        self.eventfd.as_ref().map(|fd| fd.as_fd())
+        self.channel.eventfd.as_ref().map(|fd| fd.as_fd())
     }
 
     pub fn take_eventfd(&mut self) -> Option<EventFd> {
-        self.eventfd.take()
+        self.channel.eventfd.take()
     }
 
     pub fn enable_cache(&mut self) {
@@ -101,72 +97,69 @@ impl<T: Copy> Producer<T> {
 }
 
 pub struct Consumer<T: Copy> {
-    queue: ConsumerQueue,
-    eventfd: Option<EventFd>,
+    channel: ConsumerChannel,
     _type: PhantomData<T>,
 }
 
 impl<T: Copy> Consumer<T> {
-    fn new(channel: Channel) -> Result<Self, ShmMapError> {
+    fn new(channel: ConsumerChannel) -> Result<Self, ShmMapError> {
         if size_of::<T>() > channel.queue.message_size().get() {
             return Err(ShmMapError::OutOfBounds);
         }
 
-        let queue = ConsumerQueue::new(channel.queue);
-
         Ok(Self {
-            queue,
-            eventfd: channel.eventfd,
+            channel,
             _type: PhantomData,
         })
     }
 
     pub fn current_message(&self) -> Option<&T> {
-        let ptr: *const T = self.queue.current_message()?.cast();
+        let ptr: *const T = self.channel.queue.current_message()?.cast();
         Some(unsafe { &*ptr })
     }
 
     pub fn pop(&mut self) -> PopResult {
-        if let Some(eventfd) = self.eventfd.as_ref()
+        if let Some(eventfd) = self.channel.eventfd.as_ref()
             && eventfd.read().is_err()
         {
-            if self.queue.current_message().is_some() {
+            if self.channel.queue.current_message().is_some() {
                 return PopResult::NoNewMessage;
             } else {
                 return PopResult::NoMessage;
             }
         }
 
-        self.queue.pop()
+        self.channel.queue.pop()
     }
 
     pub fn flush(&mut self) -> PopResult {
-        if self.eventfd.is_some() {
+        if self.channel.eventfd.is_some() {
             let mut result = PopResult::NoMessage;
             while self.pop() == PopResult::Success {
                 result = PopResult::Success;
             }
             result
         } else {
-            self.queue.flush()
+            self.channel.queue.flush()
         }
     }
 
     pub fn eventfd(&self) -> Option<BorrowedFd<'_>> {
-        self.eventfd.as_ref().map(|fd| fd.as_fd())
+        self.channel.eventfd.as_ref().map(|fd| fd.as_fd())
     }
 
     pub fn take_eventfd(&mut self) -> Option<EventFd> {
-        self.eventfd.take()
+        self.channel.eventfd.take()
     }
 }
 
-pub(crate) struct Channel {
-    queue: Queue,
+
+pub(crate) struct ConsumerChannel {
+    queue: ConsumerQueue,
     eventfd: Option<EventFd>,
 }
 
-impl Channel {
+impl ConsumerChannel {
     pub fn allocate(
         attr: &ChannelAttr,
         shm: &SharedMemory,
@@ -179,7 +172,7 @@ impl Channel {
             None
         };
         let channel = Self::new(&attr.to_queue_attr(), eventfd, shm, shm_offset)?;
-        channel.queue.init();
+        channel.queue.init_shm();
         Ok(channel)
     }
 
@@ -191,25 +184,63 @@ impl Channel {
     ) -> Result<Self, ResourceError> {
         let shm_size = attr.shm_size();
         let chunk = shm.alloc(*shm_offset, shm_size)?;
-        let queue = Queue::new(chunk, attr)?;
+        let queue = ConsumerQueue::new(chunk, attr)?;
 
         *shm_offset += shm_size.get();
 
-        Ok(Channel { queue, eventfd })
+        Ok(Self { queue, eventfd })
+    }
+}
+
+pub(crate) struct ProducerChannel {
+    queue: ProducerQueue,
+    eventfd: Option<EventFd>,
+}
+
+impl ProducerChannel {
+    pub fn allocate(
+        attr: &ChannelAttr,
+        shm: &SharedMemory,
+        shm_offset: &mut usize,
+    ) -> Result<Self, ResourceError> {
+        let eventfd = if attr.eventfd {
+            let eventfd = eventfd_create()?;
+            Some(eventfd)
+        } else {
+            None
+        };
+        let channel = Self::new(&attr.to_queue_attr(), eventfd, shm, shm_offset)?;
+        channel.queue.init_shm();
+        Ok(channel)
+    }
+
+    pub fn new(
+        attr: &QueueAttr,
+        eventfd: Option<EventFd>,
+        shm: &SharedMemory,
+        shm_offset: &mut usize,
+    ) -> Result<Self, ResourceError> {
+        let shm_size = attr.shm_size();
+        let chunk = shm.alloc(*shm_offset, shm_size)?;
+        let queue = ProducerQueue::new(chunk, attr)?;
+
+        *shm_offset += shm_size.get();
+
+        Ok(Self { queue, eventfd })
     }
 }
 
 pub struct ChannelGroup {
     attr: GroupAttr,
     shm: Arc<SharedMemory>,
-    producers: Vec<Option<Channel>>,
-    consumers: Vec<Option<Channel>>,
+    producers: Vec<Option<ProducerChannel>>,
+    consumers: Vec<Option<ConsumerChannel>>,
 }
 
 impl ChannelGroup {
     pub fn from_attr(attr: &GroupAttr) -> Result<Self, ResourceError> {
-        let mut producers = Vec::<Option<Channel>>::with_capacity(attr.producers.len());
-        let mut consumers = Vec::<Option<Channel>>::with_capacity(attr.consumers.len());
+        let mut producers = Vec::<Option<ProducerChannel>>::with_capacity(attr.producers.len());
+        let mut consumers = Vec::<Option<ConsumerChannel>>::with_capacity(attr.consumers.len());
 
         let shm_size =
             NonZeroUsize::new(attr.calc_shm_size()).ok_or(ResourceError::InvalidArgument)?;
@@ -221,13 +252,13 @@ impl ChannelGroup {
         let mut shm_offset = 0;
 
         for attr in &attr.producers {
-            let channel = Channel::allocate(attr, &shm, &mut shm_offset)?;
+            let channel = ProducerChannel::allocate(attr, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }
 
         for attr in &attr.consumers {
-            let channel = Channel::allocate(attr, &shm, &mut shm_offset)?;
+            let channel = ConsumerChannel::allocate(attr, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
@@ -281,8 +312,8 @@ impl ChannelGroup {
     pub fn deserialize(request: &[u8], mut fds: VecDeque<OwnedFd>) -> Result<Self, TransferError> {
         let attr = parse_request(request)?;
 
-        let mut producers = Vec::<Option<Channel>>::with_capacity(attr.producers.len());
-        let mut consumers = Vec::<Option<Channel>>::with_capacity(attr.consumers.len());
+        let mut producers = Vec::<Option<ProducerChannel>>::with_capacity(attr.producers.len());
+        let mut consumers = Vec::<Option<ConsumerChannel>>::with_capacity(attr.consumers.len());
 
         let shmfd = fds
             .pop_front()
@@ -309,7 +340,7 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
+            let channel = ConsumerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
@@ -324,7 +355,7 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = Channel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
+            let channel = ProducerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }
