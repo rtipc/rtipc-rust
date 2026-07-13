@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36" pages="2">
   <diagram name="Page-1" id="oTJcGQ3hZW8C925jQrNs">
-    <mxGraphModel dx="2135" dy="1821" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1729" dy="1572" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="0" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -93,12 +93,12 @@
           <mxGeometry height="459.99999999999994" width="479.9999999999999" as="geometry" />
         </mxCell>
         <mxCell id="r3RK4nMMsb8eW-loMsLh-42" parent="1" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=0;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;Client&lt;/b&gt;" vertex="1">
-          <mxGeometry height="1000" width="135" x="-40.5" y="-400" as="geometry" />
+          <mxGeometry height="1000" width="135" x="-42.5" y="-400" as="geometry" />
         </mxCell>
-        <mxCell id="r3RK4nMMsb8eW-loMsLh-53" parent="r3RK4nMMsb8eW-loMsLh-42" style="html=1;whiteSpace=wrap;" value="&lt;b&gt;VectorConfig&lt;/b&gt;" vertex="1">
+        <mxCell id="r3RK4nMMsb8eW-loMsLh-53" parent="r3RK4nMMsb8eW-loMsLh-42" style="html=1;whiteSpace=wrap;" value="&lt;b&gt;GroupAttr&lt;/b&gt;" vertex="1">
           <mxGeometry height="50" width="110" x="12.5" y="82" as="geometry" />
         </mxCell>
-        <mxCell id="r3RK4nMMsb8eW-loMsLh-76" parent="r3RK4nMMsb8eW-loMsLh-42" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;ChannelVector&lt;/b&gt;" vertex="1">
+        <mxCell id="r3RK4nMMsb8eW-loMsLh-76" parent="r3RK4nMMsb8eW-loMsLh-42" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;ChannelGroup&lt;/b&gt;" vertex="1">
           <mxGeometry height="40" width="130" x="2.5" y="161" as="geometry" />
         </mxCell>
         <mxCell id="r3RK4nMMsb8eW-loMsLh-54" parent="r3RK4nMMsb8eW-loMsLh-42" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;UnixMessageTx&lt;/b&gt;" vertex="1">
@@ -112,7 +112,7 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="L0IPiKWML5wAW1CLAK4e-4" connectable="0" parent="r3RK4nMMsb8eW-loMsLh-87" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;Serialize()&lt;/b&gt;" vertex="1">
+        <mxCell id="L0IPiKWML5wAW1CLAK4e-4" connectable="0" parent="r3RK4nMMsb8eW-loMsLh-87" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;serialize()&lt;/b&gt;" vertex="1">
           <mxGeometry relative="1" x="-0.1875" y="1" as="geometry">
             <mxPoint x="9" y="11" as="offset" />
           </mxGeometry>
@@ -127,7 +127,7 @@
             <mxPoint x="-111.44999999999982" y="336" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="r3RK4nMMsb8eW-loMsLh-57" connectable="0" parent="r3RK4nMMsb8eW-loMsLh-56" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;New()&lt;/b&gt;" vertex="1">
+        <mxCell id="r3RK4nMMsb8eW-loMsLh-57" connectable="0" parent="r3RK4nMMsb8eW-loMsLh-56" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;from_attr()&lt;/b&gt;" vertex="1">
           <mxGeometry relative="1" x="-0.0601" y="3" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
@@ -209,7 +209,7 @@
             <mxPoint x="89.5" y="552.9999999999998" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="r3RK4nMMsb8eW-loMsLh-79" parent="r3RK4nMMsb8eW-loMsLh-58" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;ChannelVector&lt;/b&gt;" vertex="1">
+        <mxCell id="r3RK4nMMsb8eW-loMsLh-79" parent="r3RK4nMMsb8eW-loMsLh-58" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" value="&lt;b&gt;ChannelGroup&lt;/b&gt;" vertex="1">
           <mxGeometry height="40" width="130" x="4.5" y="390" as="geometry" />
         </mxCell>
         <mxCell id="r3RK4nMMsb8eW-loMsLh-59" parent="r3RK4nMMsb8eW-loMsLh-58" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};horizontal=0;" value="&lt;b&gt;Consumer&lt;/b&gt;" vertex="1">
@@ -253,7 +253,7 @@
             <mxPoint x="188.5" y="260" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="L0IPiKWML5wAW1CLAK4e-5" connectable="0" parent="L0IPiKWML5wAW1CLAK4e-3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;Deserialize()&lt;/b&gt;" vertex="1">
+        <mxCell id="L0IPiKWML5wAW1CLAK4e-5" connectable="0" parent="L0IPiKWML5wAW1CLAK4e-3" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="&lt;b&gt;deserialize()&lt;/b&gt;" vertex="1">
           <mxGeometry relative="1" x="0.0492" y="3" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
