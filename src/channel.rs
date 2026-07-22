@@ -153,7 +153,6 @@ impl<T: Copy> Consumer<T> {
     }
 }
 
-
 pub(crate) struct ConsumerChannel {
     queue: ConsumerQueue,
     eventfd: Option<EventFd>,
@@ -271,13 +270,13 @@ impl ChannelGroup {
         })
     }
 
-    pub fn take_consumer<T: Copy>(&mut self, index: usize) -> Option<Consumer<T>> {
+    pub fn acquire_consumer<T: Copy>(&mut self, index: usize) -> Option<Consumer<T>> {
         let channel = self.consumers.get_mut(index)?.take()?;
         let consumer = Consumer::new(channel).ok()?;
         Some(consumer)
     }
 
-    pub fn take_producer<T: Copy>(&mut self, index: usize) -> Option<Producer<T>> {
+    pub fn acquire_producer<T: Copy>(&mut self, index: usize) -> Option<Producer<T>> {
         let channel = self.producers.get_mut(index)?.take()?;
         let producer = Producer::new(channel).ok()?;
         Some(producer)
@@ -340,7 +339,8 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = ConsumerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
+            let channel =
+                ConsumerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             consumers.push(Some(channel));
         }
@@ -355,7 +355,8 @@ impl ChannelGroup {
             } else {
                 None
             };
-            let channel = ProducerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
+            let channel =
+                ProducerChannel::new(&attr.to_queue_attr(), eventfd, &shm, &mut shm_offset)?;
 
             producers.push(Some(channel));
         }

@@ -41,9 +41,9 @@ fn print_group(grp: &ChannelGroup) {
 impl App {
     pub fn new(mut grp: ChannelGroup) -> Self {
         print_group(&grp);
-        let command = grp.take_consumer(0).unwrap();
-        let response = grp.take_producer(0).unwrap();
-        let event = grp.take_producer(1).unwrap();
+        let command = grp.acquire_consumer(0).unwrap();
+        let response = grp.acquire_producer(0).unwrap();
+        let event = grp.acquire_producer(1).unwrap();
 
         Self {
             command,

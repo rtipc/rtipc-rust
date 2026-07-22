@@ -210,7 +210,6 @@ impl ProducerQueue {
         })
     }
 
-
     pub(crate) fn message_size(&self) -> NonZeroUsize {
         self.queue.message_size
     }

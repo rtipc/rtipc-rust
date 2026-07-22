@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use crate::{
-    ChannelAttr, GroupAttr, QueueAttr,
+    ChannelAttr, GroupAttr,
     error::*,
     header::{HEADER_SIZE, verify_header, write_header},
     log::error,

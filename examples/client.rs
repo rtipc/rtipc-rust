@@ -64,9 +64,9 @@ struct App {
 
 impl App {
     pub fn new(mut grp: ChannelGroup) -> Self {
-        let command = grp.take_producer(0).unwrap();
-        let response = grp.take_consumer(0).unwrap();
-        let event = grp.take_consumer(1).unwrap();
+        let command = grp.acquire_producer(0).unwrap();
+        let response = grp.acquire_consumer(0).unwrap();
+        let event = grp.acquire_consumer(1).unwrap();
 
         let event_listener = Some(thread::spawn(move || handle_events(event)));
 
