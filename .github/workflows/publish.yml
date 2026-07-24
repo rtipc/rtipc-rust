@@ -1,16 +1,17 @@
 name: Publish
+
 on:
-  push:
-    tags:
-      - v[0-9]+.[0-9]+.[0-9]+
+  release:
+    types: [published]
+
 jobs:
-  Publish:
+  publish:
     runs-on: ubuntu-latest
     container:
       image: rust:latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Install toml-cli
         run: cargo install toml-cli
       - name: Check version
