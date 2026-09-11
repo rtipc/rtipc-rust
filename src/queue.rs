@@ -431,10 +431,16 @@ pub struct ConsumerQueue {
 impl ConsumerQueue {
     pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
         let queue = Queue::new(chunk, attr)?;
-        Ok(Self { queue, current: 0 })
+        Ok(Self {
+            queue,
+            current: INVALID_INDEX,
+        })
     }
 
     pub(crate) fn current_message(&self) -> Option<*const ()> {
+        if self.current == INVALID_INDEX {
+            return None;
+        }
         let ptr = self.queue.messages.get(self.current as usize)?;
         Some(ptr.cast())
     }
@@ -498,6 +504,11 @@ impl ConsumerQueue {
             } else {
                 return PopResult::SuccessMessagesDiscarded;
             }
+        }
+
+        if self.current == INVALID_INDEX {
+            /* consumed flag was set, but we don't have a message yet */
+            return PopResult::QueueError;
         }
 
         /* try to get next message */
