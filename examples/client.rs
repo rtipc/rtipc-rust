@@ -19,6 +19,7 @@ use crate::common::CommandId;
 use crate::common::MsgCommand;
 use crate::common::MsgEvent;
 use crate::common::MsgResponse;
+use crate::common::rpc::client_group_rpc_create;
 use crate::common::wait_pollin;
 
 mod common;
@@ -34,8 +35,7 @@ fn handle_events(mut consumer: Consumer<MsgEvent>) -> Result<(), Errno> {
             continue;
         }
 
-        match consumer.pop() {
-            PopResult::QueueError => panic!(),
+        match consumer.pop().unwrap() {
             PopResult::NoMessage => return Err(Errno::EBADMSG),
             PopResult::NoNewMessage => return Err(Errno::EBADMSG),
             PopResult::Success => {
@@ -82,11 +82,10 @@ impl App {
 
         for cmd in cmds {
             self.command.current_message().clone_from(cmd);
-            self.command.force_push();
+            self.command.force_push().unwrap();
 
             loop {
-                match self.response.pop() {
-                    PopResult::QueueError => panic!(),
+                match self.response.pop().unwrap() {
                     PopResult::NoMessage => {
                         thread::sleep(pause);
                         continue;
@@ -140,33 +139,7 @@ fn main() {
         },
     ];
 
-    let c2s_channels: [ChannelAttr; 1] = [ChannelAttr {
-        additional_messages: 0,
-        message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgCommand>()) },
-        eventfd: true,
-        info: b"rpc command".to_vec(),
-    }];
-
-    let s2c_channels: [ChannelAttr; 2] = [
-        ChannelAttr {
-            additional_messages: 0,
-            message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgResponse>()) },
-            eventfd: false,
-            info: b"rpc response".to_vec(),
-        },
-        ChannelAttr {
-            additional_messages: 10,
-            message_size: unsafe { NonZeroUsize::new_unchecked(size_of::<MsgEvent>()) },
-            eventfd: true,
-            info: b"rpc event".to_vec(),
-        },
-    ];
-
-    let attr = GroupAttr {
-        producers: c2s_channels.to_vec(),
-        consumers: s2c_channels.to_vec(),
-        info: b"rpc example".to_vec(),
-    };
+    let attr = client_group_rpc_create();
     let grp = client_connect("rtipc.sock", &attr).unwrap();
     let mut app = App::new(grp);
     thread::sleep(time::Duration::from_millis(100));

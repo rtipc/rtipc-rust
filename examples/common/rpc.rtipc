@@ -1,0 +1,27 @@
+
+struct MsgCommand {
+	id: u32,
+	args: [i32; 3],
+}
+
+struct MsgResponse {
+	id: u32,
+	result: i32,
+	data: i32,
+}
+
+struct MsgEvent {
+	id: u32,
+	nr: u32,
+}
+
+group RPC {
+
+	c2s {
+		command: [MsgCommand;0;true],
+	} 
+	s2c {
+		response: [MsgResponse;0;true],
+		event: [MsgEvent;10; true],
+	}	
+}

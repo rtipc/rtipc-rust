@@ -46,33 +46,38 @@ impl<T: Copy> Producer<T> {
         }
     }
 
-    pub fn force_push(&mut self) -> ForcePushResult {
+    pub fn count_messages(self) -> Result<usize, QueueError> {
+        self.channel.queue.count_messages()
+    }
+
+    pub fn force_push(&mut self) -> Result<ForcePushResult, QueueError> {
         if let Some(ref cache) = self.cache {
             *self.current_message() = *cache.clone();
         }
 
-        let result = self.channel.queue.force_push();
+        let result = self.channel.queue.force_push()?;
 
         if result == ForcePushResult::Success {
             self.channel.eventfd.as_ref().map(|fd| fd.write(1));
         }
 
-        result
+        Ok(result)
     }
 
-    pub fn try_push(&mut self) -> TryPushResult {
+    pub fn try_push(&mut self) -> Result<TryPushResult, QueueError> {
         if let Some(ref cache) = self.cache {
             if self.channel.queue.full() {
-                return TryPushResult::QueueFull;
+                return Ok(TryPushResult::QueueFull);
             }
             *self.current_message() = *cache.clone();
         }
 
-        let result = self.channel.queue.try_push();
+        let result = self.channel.queue.try_push()?;
+
         if result == TryPushResult::Success {
             self.channel.eventfd.as_ref().map(|fd| fd.write(1));
         }
-        result
+        Ok(result)
     }
 
     pub fn eventfd(&self) -> Option<BorrowedFd<'_>> {
@@ -118,27 +123,31 @@ impl<T: Copy> Consumer<T> {
         Some(unsafe { &*ptr })
     }
 
-    pub fn pop(&mut self) -> PopResult {
+    pub fn count_messages(self) -> Result<usize, QueueError> {
+        self.channel.queue.count_messages()
+    }
+
+    pub fn pop(&mut self) -> Result<PopResult, QueueError> {
         if let Some(eventfd) = self.channel.eventfd.as_ref()
             && eventfd.read().is_err()
         {
             if self.channel.queue.current_message().is_some() {
-                return PopResult::NoNewMessage;
+                return Ok(PopResult::NoNewMessage);
             } else {
-                return PopResult::NoMessage;
+                return Ok(PopResult::NoMessage);
             }
         }
 
         self.channel.queue.pop()
     }
 
-    pub fn flush(&mut self) -> PopResult {
+    pub fn flush(&mut self) -> Result<PopResult, QueueError> {
         if self.channel.eventfd.is_some() {
             let mut result = PopResult::NoMessage;
-            while self.pop() == PopResult::Success {
+            while self.pop()? == PopResult::Success {
                 result = PopResult::Success;
             }
-            result
+            Ok(result)
         } else {
             self.channel.queue.flush()
         }

@@ -58,8 +58,7 @@ impl App {
         while run {
             let eventfd = self.command.eventfd().unwrap();
             let _ = wait_pollin(eventfd, Duration::from_millis(10));
-            match self.command.pop() {
-                PopResult::QueueError => panic!(),
+            match self.command.pop().unwrap() {
                 PopResult::NoMessage => continue,
                 PopResult::NoNewMessage => continue,
                 PopResult::Success => {}
@@ -86,7 +85,7 @@ impl App {
                     err
                 }
             };
-            self.response.force_push();
+            self.response.force_push().unwrap();
 
             cnt = cnt + 1;
         }
@@ -97,9 +96,9 @@ impl App {
             event.id = id;
             event.nr = i;
             if force {
-                self.event.force_push();
+                self.event.force_push().unwrap();
             } else {
-                if self.event.try_push() == TryPushResult::QueueFull {
+                if self.event.try_push().unwrap() == TryPushResult::QueueFull {
                     return i as i32;
                 }
             }

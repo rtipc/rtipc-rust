@@ -29,6 +29,11 @@ pub enum RequestError {
 }
 
 #[derive(Debug)]
+pub enum QueueError {
+    InvalidIndex,
+}
+
+#[derive(Debug)]
 pub enum TransferError {
     ResourceError(ResourceError),
     RequestError(RequestError),
