@@ -71,7 +71,7 @@ impl QueueAttr {
     }
 }
 
-#[derive(Clone)]
+#[derive(Eq, Clone)]
 pub struct ChannelAttr {
     pub additional_messages: usize,
     pub message_size: NonZeroUsize,
@@ -88,7 +88,16 @@ impl ChannelAttr {
     }
 }
 
-#[derive(Clone)]
+impl PartialEq for ChannelAttr {
+    fn eq(&self, other: &Self) -> bool {
+        self.additional_messages == other.additional_messages
+            && self.message_size == other.message_size
+            && self.eventfd == other.eventfd
+            && self.info == other.info
+    }
+}
+
+#[derive(Eq, Clone)]
 pub struct GroupAttr {
     pub producers: Vec<ChannelAttr>,
     pub consumers: Vec<ChannelAttr>,
@@ -118,5 +127,13 @@ impl GroupAttr {
             .sum();
 
         producers_size + consumers_size
+    }
+}
+
+impl PartialEq for GroupAttr {
+    fn eq(&self, other: &Self) -> bool {
+        self.consumers == other.consumers
+            && self.producers == other.producers
+            && self.info == other.info
     }
 }
