@@ -66,8 +66,7 @@ impl App {
             };
             let cmd = self.command.current_message().unwrap();
             self.response.current_message().id = cmd.id;
-            let args: [i32; 3] = cmd.args;
-            println!("server received command: {}", cmd);
+            println!("server received command: id = {}", cmd.id);
 
             let cmdid: CommandId = unsafe { ::std::mem::transmute(cmd.id) };
             self.response.current_message().result = match cmdid {
@@ -76,18 +75,22 @@ impl App {
                     run = false;
                     0
                 }
-                CommandId::SendEvent => {
-                    self.send_events(args[0] as u32, args[1] as u32, args[2] != 0)
-                }
+                CommandId::SendEvent => self.send_events(
+                    unsafe { cmd.args.send.id },
+                    unsafe { cmd.args.send.num },
+                    unsafe { cmd.args.send.force },
+                ),
                 CommandId::Div => {
-                    let (err, res) = self.div(args[0], args[1]);
-                    self.response.current_message().data = res;
+                    let (err, res) = self.div(unsafe { cmd.args.div.divident }, unsafe {
+                        cmd.args.div.divisor
+                    });
+                    self.response.current_message().data.quotient = res;
                     err
                 }
             };
             self.response.force_push().unwrap();
 
-            cnt = cnt + 1;
+            cnt += 1;
         }
     }
     fn send_events(&mut self, id: u32, num: u32, force: bool) -> i32 {
@@ -105,12 +108,8 @@ impl App {
         }
         num as i32
     }
-    fn div(&mut self, a: i32, b: i32) -> (i32, i32) {
-        if b == 0 {
-            return (-1, 0);
-        } else {
-            return (0, a / b);
-        }
+    fn div(&mut self, a: f64, b: f64) -> (i32, f64) {
+        if b == 0.0 { (-1, 0.0) } else { (0, a / b) }
     }
 }
 

@@ -1,13 +1,33 @@
+struct SendEventArgs {
+	id: u32,
+	force: bool,
+	num: u32
+}
+
+struct DivArgs {
+	divisor: f64,
+	divident: f64,
+}
+
+union CommandArgs {
+	div: DivArgs,
+	send: SendEventArgs,
+	
+}
 
 struct MsgCommand {
 	id: u32,
-	args: [i32; 3],
+	args: CommandArgs,
+}
+
+union ResponseData {
+	 quotient: f64,
 }
 
 struct MsgResponse {
 	id: u32,
 	result: i32,
-	data: i32,
+	data: ResponseData,
 }
 
 struct MsgEvent {

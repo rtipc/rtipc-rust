@@ -70,7 +70,10 @@ impl Server {
     }
 }
 
-pub fn client_connect_fd(socket: RawFd, attr: &GroupAttributes) -> Result<ChannelGroup, TransferError> {
+pub fn client_connect_fd(
+    socket: RawFd,
+    attr: &GroupAttributes,
+) -> Result<ChannelGroup, TransferError> {
     let grp = ChannelGroup::from_attr(attr)?;
 
     let (req_msg, fds) = grp.serialize();

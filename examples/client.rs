@@ -1,4 +1,3 @@
-use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::thread::JoinHandle;
@@ -12,14 +11,15 @@ use rtipc::Consumer;
 use rtipc::PopResult;
 use rtipc::Producer;
 use rtipc::client_connect;
-use rtipc::error::*;
-use rtipc::{ChannelAttr, GroupAttr};
 
+use crate::common::CommandArgs;
 use crate::common::CommandId;
+use crate::common::DivArgs;
 use crate::common::MsgCommand;
 use crate::common::MsgEvent;
 use crate::common::MsgResponse;
-use crate::common::rpc::client_group_rpc_create;
+use crate::common::SendEventArgs;
+use crate::common::rpc::CLIENT_GROUP_RPC_CREATE;
 use crate::common::wait_pollin;
 
 mod common;
@@ -39,16 +39,12 @@ fn handle_events(mut consumer: Consumer<MsgEvent>) -> Result<(), Errno> {
             PopResult::NoMessage => return Err(Errno::EBADMSG),
             PopResult::NoNewMessage => return Err(Errno::EBADMSG),
             PopResult::Success => {
-                println!(
-                    "client received event: {}",
-                    consumer.current_message().unwrap()
-                )
+                let msg = consumer.current_message().unwrap();
+                println!("client received event: id = {} nr = {}", msg.id, msg.nr)
             }
             PopResult::SuccessMessagesDiscarded => {
-                println!(
-                    "client received event: {}",
-                    consumer.current_message().unwrap()
-                )
+                let msg = consumer.current_message().unwrap();
+                println!("client received event: id = {} nr = {}", msg.id, msg.nr)
             }
         };
     }
@@ -97,10 +93,10 @@ impl App {
                     PopResult::Success => {}
                     PopResult::SuccessMessagesDiscarded => {}
                 };
-
+                let msg = self.response.current_message().unwrap();
                 println!(
-                    "client received response: {}",
-                    self.response.current_message().unwrap()
+                    "client received response id = {}, result = {} ",
+                    msg.id, msg.result
                 );
                 break;
             }
@@ -115,32 +111,54 @@ fn main() {
     let commands: [MsgCommand; 6] = [
         MsgCommand {
             id: CommandId::Hello as u32,
-            args: [1, 2, 0],
+            args: unsafe { std::mem::zeroed() },
         },
         MsgCommand {
             id: CommandId::SendEvent as u32,
-            args: [11, 20, 0],
+            args: CommandArgs {
+                send: SendEventArgs {
+                    id: 11,
+                    force: false,
+                    num: 20,
+                },
+            },
         },
         MsgCommand {
             id: CommandId::SendEvent as u32,
-            args: [12, 20, 1],
+            args: CommandArgs {
+                send: SendEventArgs {
+                    id: 12,
+                    force: true,
+                    num: 20,
+                },
+            },
         },
         MsgCommand {
             id: CommandId::Div as u32,
-            args: [100, 7, 0],
+            args: CommandArgs {
+                div: DivArgs {
+                    divisor: 100.0,
+                    divident: 7.0,
+                },
+            },
         },
         MsgCommand {
             id: CommandId::Div as u32,
-            args: [100, 0, 0],
+            args: CommandArgs {
+                div: DivArgs {
+                    divisor: 100.0,
+                    divident: 0.0,
+                },
+            },
         },
         MsgCommand {
             id: CommandId::Stop as u32,
-            args: [0, 0, 0],
+            args: unsafe { std::mem::zeroed() },
         },
     ];
 
-    let attr = client_group_rpc_create();
-    let grp = client_connect("rtipc.sock", &attr).unwrap();
+    let attr = &CLIENT_GROUP_RPC_CREATE;
+    let grp = client_connect("rtipc.sock", attr).unwrap();
     let mut app = App::new(grp);
     thread::sleep(time::Duration::from_millis(100));
     app.run(&commands);
