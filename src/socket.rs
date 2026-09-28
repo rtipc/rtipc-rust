@@ -7,7 +7,7 @@ use nix::unistd::unlink;
 use std::os::fd::{OwnedFd, RawFd};
 use std::os::unix::io::AsRawFd;
 
-use crate::GroupAttr;
+use crate::GroupAttributes;
 use crate::channel::ChannelGroup;
 use crate::error::*;
 use crate::protocol::{create_response, parse_response};
@@ -70,7 +70,7 @@ impl Server {
     }
 }
 
-pub fn client_connect_fd(socket: RawFd, attr: &GroupAttr) -> Result<ChannelGroup, TransferError> {
+pub fn client_connect_fd(socket: RawFd, attr: &GroupAttributes) -> Result<ChannelGroup, TransferError> {
     let grp = ChannelGroup::from_attr(attr)?;
 
     let (req_msg, fds) = grp.serialize();
@@ -88,7 +88,7 @@ pub fn client_connect_fd(socket: RawFd, attr: &GroupAttr) -> Result<ChannelGroup
 
 pub fn client_connect<P: ?Sized + NixPath>(
     path: &P,
-    attr: &GroupAttr,
+    attr: &GroupAttributes,
 ) -> Result<ChannelGroup, TransferError> {
     let socket = socket(
         AddressFamily::Unix,

@@ -11,7 +11,7 @@ use std::{
 use nix::sys::eventfd::EventFd;
 
 use crate::{
-    ChannelAttr, GroupAttr, QueueAttr,
+    ChannelAttributes, GroupAttributes, QueueAttributes,
     error::*,
     protocol::{create_request, parse_request},
     queue::{ConsumerQueue, ForcePushResult, PopResult, ProducerQueue, TryPushResult},
@@ -169,7 +169,7 @@ pub(crate) struct ConsumerChannel {
 
 impl ConsumerChannel {
     pub fn allocate(
-        attr: &ChannelAttr,
+        attr: &ChannelAttributes,
         shm: &SharedMemory,
         shm_offset: &mut usize,
     ) -> Result<Self, ResourceError> {
@@ -185,7 +185,7 @@ impl ConsumerChannel {
     }
 
     pub fn new(
-        attr: &QueueAttr,
+        attr: &QueueAttributes,
         eventfd: Option<EventFd>,
         shm: &SharedMemory,
         shm_offset: &mut usize,
@@ -207,7 +207,7 @@ pub(crate) struct ProducerChannel {
 
 impl ProducerChannel {
     pub fn allocate(
-        attr: &ChannelAttr,
+        attr: &ChannelAttributes,
         shm: &SharedMemory,
         shm_offset: &mut usize,
     ) -> Result<Self, ResourceError> {
@@ -223,7 +223,7 @@ impl ProducerChannel {
     }
 
     pub fn new(
-        attr: &QueueAttr,
+        attr: &QueueAttributes,
         eventfd: Option<EventFd>,
         shm: &SharedMemory,
         shm_offset: &mut usize,
@@ -239,14 +239,14 @@ impl ProducerChannel {
 }
 
 pub struct ChannelGroup {
-    attr: GroupAttr,
+    attr: GroupAttributes,
     shm: Arc<SharedMemory>,
     producers: Vec<Option<ProducerChannel>>,
     consumers: Vec<Option<ConsumerChannel>>,
 }
 
 impl ChannelGroup {
-    pub fn from_attr(attr: &GroupAttr) -> Result<Self, ResourceError> {
+    pub fn from_attr(attr: &GroupAttributes) -> Result<Self, ResourceError> {
         let mut producers = Vec::<Option<ProducerChannel>>::with_capacity(attr.producers.len());
         let mut consumers = Vec::<Option<ConsumerChannel>>::with_capacity(attr.consumers.len());
 
@@ -291,7 +291,7 @@ impl ChannelGroup {
         Some(producer)
     }
 
-    pub fn get_attr(&self) -> &GroupAttr {
+    pub fn get_attr(&self) -> &GroupAttributes {
         &self.attr
     }
 

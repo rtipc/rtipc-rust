@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 
 use crate::{
-    ChannelAttr, GroupAttr,
+    ChannelAttributes, GroupAttributes,
     error::*,
     header::{HEADER_SIZE, verify_header, write_header},
     log::error,
@@ -16,7 +16,7 @@ struct ChannelEntry {
 }
 
 impl ChannelEntry {
-    fn from_attr(attr: &ChannelAttr) -> Self {
+    fn from_attr(attr: &ChannelAttributes) -> Self {
         Self {
             additional_messages: attr.additional_messages as u32,
             message_size: attr.message_size.get() as u32,
@@ -36,7 +36,7 @@ struct Layout {
 }
 
 impl Layout {
-    pub(self) fn calc(config: &GroupAttr) -> Self {
+    pub(self) fn calc(config: &GroupAttributes) -> Self {
         let mut offset = HEADER_SIZE;
 
         let group_info_offset = offset;
@@ -111,7 +111,7 @@ fn request_write<T: Copy>(request: &[u8], offset: usize, val: &T) -> Result<(), 
 
 fn request_write_channel(
     request: &mut [u8],
-    attr: &ChannelAttr,
+    attr: &ChannelAttributes,
     entry_offset: &mut usize,
     info_offset: &mut usize,
 ) {
@@ -132,7 +132,7 @@ fn request_read_entry(
     request: &[u8],
     entry_offset: &mut usize,
     info_offset: &mut usize,
-) -> Result<ChannelAttr, RequestError> {
+) -> Result<ChannelAttributes, RequestError> {
     let entry = request_read::<ChannelEntry>(request, *entry_offset).inspect_err(|_| {
         error!("request message too short");
     })?;
@@ -159,7 +159,7 @@ fn request_read_entry(
     *entry_offset += size_of::<ChannelEntry>();
     *info_offset += info_size;
 
-    Ok(ChannelAttr {
+    Ok(ChannelAttributes {
         additional_messages: entry.additional_messages as usize,
         message_size,
         eventfd: entry.eventfd != 0,
@@ -167,7 +167,7 @@ fn request_read_entry(
     })
 }
 
-pub fn parse_request(request: &[u8]) -> Result<GroupAttr, RequestError> {
+pub fn parse_request(request: &[u8]) -> Result<GroupAttributes, RequestError> {
     let header = request
         .get(0..HEADER_SIZE)
         .ok_or(RequestError::OutOfBounds)?;
@@ -204,8 +204,8 @@ pub fn parse_request(request: &[u8]) -> Result<GroupAttr, RequestError> {
 
     let info: Vec<u8> = request[group_info_offset..channel_info_offset].to_vec();
 
-    let mut consumers: Vec<ChannelAttr> = Vec::with_capacity(num_consumers);
-    let mut producers: Vec<ChannelAttr> = Vec::with_capacity(num_producers);
+    let mut consumers: Vec<ChannelAttributes> = Vec::with_capacity(num_consumers);
+    let mut producers: Vec<ChannelAttributes> = Vec::with_capacity(num_producers);
 
     for _ in 0..num_consumers {
         let attr = request_read_entry(request, &mut offset, &mut channel_info_offset)?;
@@ -219,14 +219,14 @@ pub fn parse_request(request: &[u8]) -> Result<GroupAttr, RequestError> {
         producers.push(attr);
     }
 
-    Ok(GroupAttr {
+    Ok(GroupAttributes {
         consumers,
         producers,
         info,
     })
 }
 
-pub fn create_request(config: &GroupAttr) -> Vec<u8> {
+pub fn create_request(config: &GroupAttributes) -> Vec<u8> {
     let layout = Layout::calc(config);
 
     let mut request: Vec<u8> = vec![0; layout.size];

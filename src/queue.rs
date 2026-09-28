@@ -1,7 +1,7 @@
 use std::num::NonZeroUsize;
 use std::sync::atomic::Ordering;
 
-use crate::QueueAttr;
+use crate::QueueAttributes;
 use crate::cacheline_aligned;
 use crate::error::*;
 use crate::shm::{Chunk, Span};
@@ -63,7 +63,7 @@ struct Queue {
 }
 
 impl Queue {
-    fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+    fn new(chunk: Chunk, attr: &QueueAttributes) -> Result<Self, ShmMapError> {
         let queue_len = attr.additional_messages + MIN_MSGS;
         let index_size = size_of::<Index>();
         let queue_size = (2 + queue_len) * index_size;
@@ -178,7 +178,7 @@ pub struct ProducerQueue {
 }
 
 impl ProducerQueue {
-    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+    pub(crate) fn new(chunk: Chunk, attr: &QueueAttributes) -> Result<Self, ShmMapError> {
         let queue = Queue::new(chunk, attr)?;
         let queue_len = queue.len();
         let mut chain: Vec<Index> = Vec::with_capacity(queue_len);
@@ -450,7 +450,7 @@ pub struct ConsumerQueue {
 }
 
 impl ConsumerQueue {
-    pub(crate) fn new(chunk: Chunk, attr: &QueueAttr) -> Result<Self, ShmMapError> {
+    pub(crate) fn new(chunk: Chunk, attr: &QueueAttributes) -> Result<Self, ShmMapError> {
         let queue = Queue::new(chunk, attr)?;
         Ok(Self {
             queue,

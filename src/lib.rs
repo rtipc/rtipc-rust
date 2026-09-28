@@ -49,12 +49,12 @@ pub(crate) fn cacheline_aligned(size: usize) -> usize {
 }
 
 #[derive(Clone)]
-pub struct QueueAttr {
+pub struct QueueAttributes {
     pub additional_messages: usize,
     pub message_size: NonZeroUsize,
 }
 
-impl QueueAttr {
+impl QueueAttributes {
     fn data_size(&self) -> usize {
         let n = MIN_MSGS + self.additional_messages;
 
@@ -72,23 +72,23 @@ impl QueueAttr {
 }
 
 #[derive(Eq, Clone)]
-pub struct ChannelAttr {
+pub struct ChannelAttributes {
     pub additional_messages: usize,
     pub message_size: NonZeroUsize,
     pub eventfd: bool,
     pub info: Vec<u8>,
 }
 
-impl ChannelAttr {
-    fn to_queue_attr(&self) -> QueueAttr {
-        QueueAttr {
+impl ChannelAttributes {
+    fn to_queue_attr(&self) -> QueueAttributes {
+        QueueAttributes {
             additional_messages: self.additional_messages,
             message_size: self.message_size,
         }
     }
 }
 
-impl PartialEq for ChannelAttr {
+impl PartialEq for ChannelAttributes {
     fn eq(&self, other: &Self) -> bool {
         self.additional_messages == other.additional_messages
             && self.message_size == other.message_size
@@ -98,13 +98,13 @@ impl PartialEq for ChannelAttr {
 }
 
 #[derive(Eq, Clone)]
-pub struct GroupAttr {
-    pub producers: Vec<ChannelAttr>,
-    pub consumers: Vec<ChannelAttr>,
+pub struct GroupAttributes {
+    pub producers: Vec<ChannelAttributes>,
+    pub consumers: Vec<ChannelAttributes>,
     pub info: Vec<u8>,
 }
 
-impl GroupAttr {
+impl GroupAttributes {
     pub fn count_producer_eventfds(&self) -> usize {
         self.producers.iter().map(|c| c.eventfd as usize).sum()
     }
@@ -130,7 +130,7 @@ impl GroupAttr {
     }
 }
 
-impl PartialEq for GroupAttr {
+impl PartialEq for GroupAttributes {
     fn eq(&self, other: &Self) -> bool {
         self.consumers == other.consumers
             && self.producers == other.producers

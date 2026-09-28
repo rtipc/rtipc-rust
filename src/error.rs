@@ -33,6 +33,14 @@ pub enum QueueError {
     InvalidIndex,
 }
 
+
+
+#[derive(Debug)]
+pub enum AcquireError {
+    OutOfBounds,
+    AttrMismatch,
+}
+
 #[derive(Debug)]
 pub enum TransferError {
     ResourceError(ResourceError),
